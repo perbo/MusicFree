@@ -10,6 +10,7 @@ import LocalMusicSheet from "@/core/localMusicSheet";
 import lyricManager from "@/core/lyricManager";
 import musicHistory from "@/core/musicHistory";
 import MusicSheet from "@/core/musicSheet";
+import bootstrapDefaultPlugins from "@/core/pluginManager/bootstrapDefaultPlugins";
 import PluginManager from "@/core/pluginManager";
 import Theme from "@/core/theme";
 import TrackPlayer from "@/core/trackPlayer";
@@ -98,6 +99,7 @@ async function bootstrapImpl() {
 
     // 加载插件
     await PluginManager.setup();
+    await bootstrapDefaultPlugins();
     logger.mark("插件初始化完成");
     trace("插件初始化完成");
 
@@ -202,9 +204,9 @@ export async function initTrackPlayer(logger?: IPerfLogger) {
 }
 
 
-/** 不需要阻塞的 */
+/** 额外启动逻辑 */
 async function extraMakeup() {
-    // 自动更新
+    // 插件自动更新
     try {
         if (Config.getConfig("basic.autoUpdatePlugin")) {
             const lastUpdated = PersistStatus.get("app.pluginUpdateTime") || 0;
@@ -215,13 +217,14 @@ async function extraMakeup() {
                 for (let i = 0; i < plugins.length; ++i) {
                     const srcUrl = plugins[i].instance.srcUrl;
                     if (srcUrl) {
-                        // 静默失败
-                        await PluginManager.installPluginFromUrl(srcUrl).catch(emptyFunction);
+                        await PluginManager.installPluginFromUrl(srcUrl).catch(
+                            emptyFunction,
+                        );
                     }
                 }
             }
         }
-    } catch { }
+    } catch {}
 
     async function handleLinkingUrl(url: string) {
         // 插件
@@ -233,7 +236,9 @@ async function extraMakeup() {
                     .map(decodeURIComponent);
                 await Promise.all(
                     plugins.map(it =>
-                        PluginManager.installPluginFromUrl(it).catch(emptyFunction),
+                        PluginManager.installPluginFromUrl(it).catch(
+                            emptyFunction,
+                        ),
                     ),
                 );
                 Toast.success("安装成功~");

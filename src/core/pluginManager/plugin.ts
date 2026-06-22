@@ -28,12 +28,17 @@ import { URL } from "react-native-url-polyfill";
 import * as webdav from "webdav";
 import { devLog, errorLog, trace } from "../../utils/log";
 import Network from "../../utils/network";
+import {
+    isMissevanDrmHls,
+    MAOERFM_PLATFORM,
+    resolveMissevanDirectSource,
+} from "../../utils/missevanSource";
 import MediaCache from "../mediaCache";
 import _internalPluginMeta from "./meta";
 import { IPluginManager } from "@/types/core/pluginManager";
 
 
-axios.defaults.timeout = 2000;
+axios.defaults.timeout = 15000;
 axios.interceptors.response.use((response) => {
     // 统一setcookie格式，nodejs环境是数组，移动端环境都放在第一个元素
     const setCookie = response.headers["set-cookie"];
@@ -221,6 +226,15 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
         if (musicItem.platform === localPluginPlatform) {
             throw new Error("本地音乐不存在");
         }
+
+        if (this.plugin.name === MAOERFM_PLATFORM) {
+            const directSource = resolveMissevanDirectSource(musicItem);
+            if (directSource) {
+                trace("播放", "猫耳FM CDN 直链");
+                return directSource;
+            }
+        }
+
         // 2. 缓存播放
         const mediaCache = MediaCache.getMediaCache(
             musicItem,
@@ -234,6 +248,17 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
                 (pluginCacheControl === CacheControl.NoCache &&
                     Network.isOffline))
         ) {
+            const cachedUrl = mediaCache.source[quality]!.url;
+            if (
+                this.plugin.name === MAOERFM_PLATFORM &&
+                isMissevanDrmHls(cachedUrl)
+            ) {
+                const directSource = resolveMissevanDirectSource(musicItem);
+                if (directSource) {
+                    trace("播放", "猫耳FM 跳过 DRM 缓存，使用 CDN 直链");
+                    return directSource;
+                }
+            }
             trace("播放", "缓存播放");
             const qualityInfo = mediaCache.source[quality];
             return {
@@ -272,6 +297,16 @@ class PluginMethodsWrapper implements IPlugin.IPluginInstanceMethods {
             )) ?? { url: musicItem?.qualities?.[quality]?.url };
             if (!url) {
                 throw new Error("NOT RETRY");
+            }
+            if (
+                parserPlugin.name === MAOERFM_PLATFORM &&
+                isMissevanDrmHls(url)
+            ) {
+                const directSource = resolveMissevanDirectSource(musicItem);
+                if (directSource) {
+                    trace("播放", "猫耳FM 跳过 DRM HLS，使用 CDN 直链");
+                    return directSource;
+                }
             }
             trace("播放", "插件播放");
             const result = {

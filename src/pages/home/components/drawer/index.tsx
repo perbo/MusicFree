@@ -8,7 +8,6 @@ import { showPanel } from "@/components/panels/usePanel";
 import { useI18N } from "@/core/i18n";
 import { ROUTE_PATH, useNavigate } from "@/core/router";
 import TrackPlayer from "@/core/trackPlayer";
-import { checkUpdateAndShowResult } from "@/hooks/useCheckUpdate.ts";
 import NativeUtils from "@/native/utils";
 import rpx from "@/utils/rpx";
 import { useScheduleCloseCountDown } from "@/utils/scheduleClose";
@@ -59,15 +58,7 @@ function HomeDrawer(props: any) {
         },
     ];
 
-    const otherSetting: ISettingOptions[] = [
-        {
-            icon: "circle-stack",
-            title: t("sidebar.backupAndResume"),
-            onPress: () => {
-                navigateToSetting("backup");
-            },
-        },
-    ];
+    const otherSetting: ISettingOptions[] = [];
 
     if (Platform.OS === "android") {
         otherSetting.push({
@@ -163,23 +154,6 @@ function HomeDrawer(props: any) {
 
                     <ListItem
                         withHorizontalPadding
-                        key={"update"}
-                        onPress={() => {
-                            checkUpdateAndShowResult(true);
-                        }}>
-                        <ListItem.ListItemIcon
-                            icon={"arrow-path"}
-                            width={rpx(48)}
-                        />
-                        <ListItem.Content title={t("sidebar.checkUpdate")} />
-                        <ListItem.ListItemText
-                            position="right"
-                            fontSize="subTitle">
-                            {`${t("sidebar.currentVersion")}${deviceInfoModule.getVersion()}`}
-                        </ListItem.ListItemText>
-                    </ListItem>
-                    <ListItem
-                        withHorizontalPadding
                         key={"about"}
                         onPress={() => {
                             navigateToSetting("about");
@@ -191,6 +165,11 @@ function HomeDrawer(props: any) {
                         <ListItem.Content
                             title={`${t("common.about")} ${deviceInfoModule.getApplicationName()}`}
                         />
+                        <ListItem.ListItemText
+                            position="right"
+                            fontSize="subTitle">
+                            {deviceInfoModule.getVersion()}
+                        </ListItem.ListItemText>
                     </ListItem>
                 </View>
 

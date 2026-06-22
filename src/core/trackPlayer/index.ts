@@ -6,7 +6,6 @@ import {
 } from "@/constants/commonConst";
 import { MusicRepeatMode } from "@/constants/repeatModeConst";
 import delay from "@/utils/delay";
-import getUrlExt from "@/utils/getUrlExt";
 import { errorLog, trace } from "@/utils/log";
 import { createMediaIndexMap } from "@/utils/mediaIndexMap";
 import {
@@ -16,11 +15,11 @@ import {
 import Network from "@/utils/network";
 import PersistStatus from "@/utils/persistStatus";
 import { getQualityOrder } from "@/utils/qualities";
-import { musicIsPaused } from "@/utils/trackUtils";
+import { musicIsPaused, isPlayableAudioUrl } from "@/utils/trackUtils";
 import EventEmitter from "eventemitter3";
 import { produce } from "immer";
 import { atom, getDefaultStore, useAtomValue } from "jotai";
-import shuffle from "lodash.shuffle";
+import { shuffleArray } from "@/utils/shuffle";
 import ReactNativeTrackPlayer, {
     Event,
     State,
@@ -145,11 +144,7 @@ class TrackPlayer extends EventEmitter<{
         }
 
         if (musicQueue && Array.isArray(musicQueue)) {
-            this.addAll(
-                musicQueue,
-                undefined,
-                repeatMode === MusicRepeatMode.SHUFFLE,
-            );
+            this.addAll(musicQueue);
         }
 
         if (track && this.isInPlayList(track)) {
@@ -278,7 +273,6 @@ class TrackPlayer extends EventEmitter<{
     addAll(
         musicItems: Array<IMusic.IMusicItem>,
         beforeIndex?: number,
-        shouldShuffle?: boolean,
     ): void {
         const now = Date.now();
         let newPlayList: IMusic.IMusicItem[] = [];
@@ -314,11 +308,7 @@ class TrackPlayer extends EventEmitter<{
             );
         }
 
-        // 2. 如果需要随机
-        if (shouldShuffle) {
-            newPlayList = shuffle(newPlayList);
-        }
-        // 3. 设置播放列表
+        // 2. 设置播放列表
         this.setPlayList(newPlayList);
     }
 
@@ -425,6 +415,7 @@ class TrackPlayer extends EventEmitter<{
                 // 2.1 如果当前有源
                 if (
                     currentTrack?.url &&
+                    isPlayableAudioUrl(currentTrack.url) &&
                     isSameMediaItem(
                         musicItem,
                         currentTrack as IMusic.IMusicItem,
@@ -506,8 +497,12 @@ class TrackPlayer extends EventEmitter<{
                 // 如果有source
                 if (musicItem.source) {
                     for (let quality of qualityOrder) {
-                        if (musicItem.source[quality]?.url) {
-                            source = musicItem.source[quality]!;
+                        const cachedSource = musicItem.source[quality];
+                        if (
+                            cachedSource?.url &&
+                            isPlayableAudioUrl(cachedSource.url)
+                        ) {
+                            source = cachedSource;
                             this.setQuality(quality);
 
                             break;
@@ -515,9 +510,13 @@ class TrackPlayer extends EventEmitter<{
                     }
                 }
                 // 5.4 没有返回源
-                if (!source && !musicItem.url) {
+                if (!source && !isPlayableAudioUrl(musicItem.url)) {
                     // 插件失效的情况
-                    if (this.configService.getConfig("basic.tryChangeSourceWhenPlayFail")) {
+                    if (
+                        this.configService.getConfig(
+                            "basic.tryChangeSourceWhenPlayFail",
+                        ) !== false
+                    ) {
                         // 重试
                         const similarMusic = await this.getSimilarMusic(
                             musicItem,
@@ -554,16 +553,18 @@ class TrackPlayer extends EventEmitter<{
                     } else {
                         throw new Error(PlayFailReason.INVALID_SOURCE);
                     }
-                } else {
+                } else if (isPlayableAudioUrl(musicItem.url)) {
                     source = {
                         url: musicItem.url,
                     };
                     this.setQuality("standard");
+                } else if (!source) {
+                    throw new Error(PlayFailReason.INVALID_SOURCE);
                 }
             }
 
             // 6. 特殊类型源
-            if (getUrlExt(source.url) === ".m3u8") {
+            if (source.url.includes(".m3u8")) {
                 // @ts-ignore
                 source.type = "hls";
             }
@@ -620,6 +621,9 @@ class TrackPlayer extends EventEmitter<{
                 await this.handlePlayFail();
             } else if (message === PlayFailReason.PLAY_LIST_IS_EMPTY) {
                 // 队列是空的，不应该出现这种情况
+            } else {
+                errorLog("播放失败", message);
+                await this.handlePlayFail();
             }
         }
     }
@@ -723,9 +727,10 @@ class TrackPlayer extends EventEmitter<{
 
             this.setPlayList(
                 this.repeatMode === MusicRepeatMode.SHUFFLE
-                    ? shuffle(newPlayList)
+                    ? this.shufflePlayList(newPlayList)
                     : newPlayList,
             );
+            this.setCurrentMusic(musicItem);
             await this.play(musicItem, true);
         }
     }
@@ -774,7 +779,7 @@ class TrackPlayer extends EventEmitter<{
                 prevMode !== MusicRepeatMode.SHUFFLE)
         ) {
             if (mode === MusicRepeatMode.SHUFFLE) {
-                newPlayList = shuffle(playList);
+                newPlayList = this.shufflePlayList(playList);
             } else {
                 newPlayList = this.sortByTimestampAndIndex(playList, true);
             }
@@ -801,6 +806,9 @@ class TrackPlayer extends EventEmitter<{
         const clonedTrack = this.patchMediaArtwork(track);
         if (!clonedTrack) {
             return;
+        }
+        if (!isPlayableAudioUrl(clonedTrack.url)) {
+            throw new Error(PlayFailReason.INVALID_SOURCE);
         }
         await ReactNativeTrackPlayer.setQueue([clonedTrack, this.getFakeNextTrack()]);
         PersistStatus.set("music.musicItem", track as IMusic.IMusicItem);
@@ -861,6 +869,13 @@ class TrackPlayer extends EventEmitter<{
                 platform: mediaItem.platform,
             }
             : mediaItem;
+    }
+
+    private shufflePlayList(playList: IMusic.IMusicItem[]) {
+        if (playList.length <= 1) {
+            return [...playList];
+        }
+        return shuffleArray(playList);
     }
 
     private sortByTimestampAndIndex(array: any[], newArray = false) {

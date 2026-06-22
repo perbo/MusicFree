@@ -8,6 +8,7 @@ import { addFileScheme, getFileName } from "@/utils/fileUtils.ts";
 import {
     getLocalPath,
     isSameMediaItem,
+    normalizeLocalPath,
 } from "@/utils/mediaUtils";
 import StateMapper from "@/utils/stateMapper";
 import { getStorage, setStorage } from "@/utils/storage";
@@ -23,11 +24,18 @@ export async function setup() {
     const sheet = await getStorage(StorageKeys.LocalMusicSheet);
     if (sheet) {
         let validSheet: IMusic.IMusicItem[] = [];
+        const seenPaths = new Set<string>();
         for (let musicItem of sheet) {
             const localPath = getLocalPath(musicItem);
-            if (localPath && (await exists(localPath))) {
-                validSheet.push(musicItem);
+            if (!localPath || !(await exists(localPath))) {
+                continue;
             }
+            const normalizedPath = normalizeLocalPath(localPath);
+            if (seenPaths.has(normalizedPath)) {
+                continue;
+            }
+            seenPaths.add(normalizedPath);
+            validSheet.push(musicItem);
         }
         if (validSheet.length !== sheet.length) {
             await setStorage(StorageKeys.LocalMusicSheet, validSheet);
@@ -39,6 +47,27 @@ export async function setup() {
     localSheetStateMapper.notify();
 }
 
+function isDuplicateLocalMusic(
+    musicItem: IMusic.IMusicItem,
+    sheet: IMusic.IMusicItem[],
+): boolean {
+    if (sheet.some(_ => isSameMediaItem(musicItem, _))) {
+        return true;
+    }
+    const localPath = getLocalPath(musicItem);
+    if (!localPath) {
+        return false;
+    }
+    const normalizedPath = normalizeLocalPath(localPath);
+    return sheet.some(_ => {
+        const existingPath = getLocalPath(_);
+        return (
+            !!existingPath &&
+            normalizeLocalPath(existingPath) === normalizedPath
+        );
+    });
+}
+
 export async function addMusic(
     musicItem: IMusic.IMusicItem | IMusic.IMusicItem[],
 ) {
@@ -47,7 +76,7 @@ export async function addMusic(
     }
     let newSheet = [...localSheet];
     musicItem.forEach(mi => {
-        if (localSheet.findIndex(_ => isSameMediaItem(mi, _)) === -1) {
+        if (!isDuplicateLocalMusic(mi, newSheet)) {
             newSheet.push(mi);
         }
     });
@@ -62,7 +91,7 @@ function addMusicDraft(musicItem: IMusic.IMusicItem | IMusic.IMusicItem[]) {
     }
     let newSheet = [...localSheet];
     musicItem.forEach(mi => {
-        if (localSheet.findIndex(_ => isSameMediaItem(mi, _)) === -1) {
+        if (!isDuplicateLocalMusic(mi, newSheet)) {
             newSheet.push(mi);
         }
     });
@@ -201,7 +230,12 @@ async function importLocal(_folderPaths: string[]) {
     if (token !== importToken) {
         throw new Error("Import Broken");
     }
-    addMusic(musicItems);
+    const newMusicItems = musicItems.filter(
+        item => !isDuplicateLocalMusic(item, localSheet),
+    );
+    if (newMusicItems.length > 0) {
+        await addMusic(newMusicItems);
+    }
 }
 
 /** 是否为本地音乐 */

@@ -78,12 +78,10 @@ export interface ITrackPlayer extends IInjectable, EventEmitter<{
      * 批量添加音乐到播放列表
      * @param musicItems 要添加的音乐列表
      * @param beforeIndex 在指定位置之前添加，undefined表示添加到末尾
-     * @param shouldShuffle 是否随机排序添加的音乐
      */
     addAll(
         musicItems: Array<IMusic.IMusicItem>,
         beforeIndex?: number,
-        shouldShuffle?: boolean
     ): void;
 
     /**

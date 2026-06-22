@@ -5,10 +5,9 @@ import * as DocumentPicker from "expo-document-picker";
 import Loading from "@/components/base/loading";
 
 import PluginManager, { useSortedPlugins } from "@/core/pluginManager";
+import { resolvePluginUrlsFromManifest } from "@/core/pluginManager/installFromManifest";
 import { trace } from "@/utils/log";
-
 import Toast from "@/utils/toast";
-import axios from "axios";
 import { useNavigation } from "@react-navigation/native";
 import Config from "@/core/appConfig";
 import Empty from "@/components/base/empty";
@@ -216,15 +215,15 @@ export default function PluginList() {
     }
 
     async function onUpdateAllClick() {
-        const plugins = PluginManager.getEnabledPlugins();
+        const enabledPlugins = PluginManager.getEnabledPlugins();
         setLoading(true);
 
         const successResults: IInstallPluginResult[] = [];
         const failResults: IInstallPluginResult[] = [];
 
         try {
-            for (let i = 0; i < plugins.length; ++i) {
-                const srcUrl = plugins[i].instance.srcUrl;
+            for (let i = 0; i < enabledPlugins.length; ++i) {
+                const srcUrl = enabledPlugins[i].instance.srcUrl;
                 if (srcUrl) {
                     const result = await installPluginFromUrl(srcUrl);
                     if (result[0]) {
@@ -342,30 +341,10 @@ const style = StyleSheet.create({
 
 async function installPluginFromUrl(text: string): Promise<IInstallPluginResult[]> {
     try {
-        let urls: string[] = [];
         const inputUrl = text.trim();
-        if (text.endsWith(".json")) {
-            const jsonFile = (
-                await axios.get(inputUrl, {
-                    headers: {
-                        "Cache-Control": "no-cache",
-                        Pragma: "no-cache",
-                        Expires: "0",
-                    },
-                })
-            ).data;
-            /**
-             * {
-             *     plugins: [{
-             *          version: xxx,
-             *          url: xxx
-             *      }]
-             * }
-             */
-            urls = (jsonFile?.plugins ?? []).map((_: any) => _.url);
-        } else {
-            urls = [inputUrl];
-        }
+        const urls = inputUrl.endsWith(".json")
+            ? await resolvePluginUrlsFromManifest(inputUrl)
+            : [inputUrl];
         return await Promise.all(
             urls.map(url =>
                 PluginManager.installPluginFromUrl(url, {

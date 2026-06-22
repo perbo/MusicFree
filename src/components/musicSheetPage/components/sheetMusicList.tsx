@@ -43,18 +43,16 @@ export default function SheetMusicList(props: IMusicListProps) {
                         state={state}
                         musicList={musicList}
                         onItemPress={(musicItem, currentMusicList) => {
-                            if (
+                            const list =
                                 Config.getConfig(
                                     "basic.clickMusicInAlbum",
                                 ) === "playMusic"
-                            ) {
-                                TrackPlayer.play(musicItem);
-                            } else {
-                                TrackPlayer.playWithReplacePlayList(
-                                    musicItem,
-                                    currentMusicList ?? [musicItem],
-                                );
-                            }
+                                    ? [musicItem]
+                                    : currentMusicList ?? [musicItem];
+                            TrackPlayer.playWithReplacePlayList(
+                                musicItem,
+                                list,
+                            );
                         }}
                     />
                 </HorizontalSafeAreaView>

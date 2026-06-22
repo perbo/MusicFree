@@ -107,3 +107,30 @@ export function getLocalPath(mediaItem: ICommon.IMediaBase) {
 
     return localPathInMediaExtra ?? null;
 }
+
+/** 规范化本地文件路径，用于去重比较 */
+export function normalizeLocalPath(path: string): string {
+    if (!path) {
+        return "";
+    }
+    let normalized = path.trim();
+    if (normalized.startsWith("file://")) {
+        normalized = normalized.slice(7);
+    }
+    try {
+        normalized = decodeURIComponent(normalized);
+    } catch {
+        // 保持原路径
+    }
+    return normalized;
+}
+
+export function isSameLocalPath(
+    a: string | null | undefined,
+    b: string | null | undefined,
+): boolean {
+    if (!a || !b) {
+        return false;
+    }
+    return normalizeLocalPath(a) === normalizeLocalPath(b);
+}

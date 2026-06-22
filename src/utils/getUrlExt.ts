@@ -4,16 +4,10 @@ export default function getUrlExt(url?: string) {
     if (!url) {
         return;
     }
-    const ext = path.extname(url);
-
-    const extraTag = ext.indexOf("?");
-
+    const pathname = url.split("?")[0].split("#")[0];
+    const ext = path.extname(pathname);
     if (ext) {
-        if (extraTag !== -1) {
-            return ext.slice(0, extraTag);
-        } else {
-            return ext;
-        }
+        return ext;
     }
-    return url;
+    return undefined;
 }

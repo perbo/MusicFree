@@ -12,6 +12,7 @@ import Toast from "@/utils/toast";
 import Icon from "@/components/base/icon.tsx";
 import MusicSheet, { useSheetIsStarred } from "@/core/musicSheet";
 import { MusicRepeatMode } from "@/constants/repeatModeConst";
+import { randomPick } from "@/utils/shuffle";
 import { useI18N } from "@/core/i18n";
 
 interface IProps {
@@ -43,9 +44,7 @@ export default function (props: IProps) {
                             MusicRepeatMode.SHUFFLE
                         ) {
                             defaultPlayMusic =
-                                musicList[
-                                    Math.floor(Math.random() * musicList.length)
-                                ];
+                                randomPick(musicList) ?? musicList[0];
                         }
                         TrackPlayer.playWithReplacePlayList(
                             defaultPlayMusic,

@@ -30,6 +30,8 @@ interface IPersistStatus {
     "app.skipBootstrapStorageDialog": boolean;
     /** 语言设置 */
     "app.language": string;
+    /** 默认插件是否已初始化 */
+    "app.defaultPluginsBootstrapped": boolean;
     /** 上次更新插件的时间 */
     "app.pluginUpdateTime": number;
     /** 缓存的定时关闭自定义时间（分钟） */
