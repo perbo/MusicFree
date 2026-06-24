@@ -37,6 +37,11 @@ export default function PluginList() {
 
     const menuOptions: IOption[] = [
         {
+            icon: "arrow-path",
+            title: t("pluginSetting.fabOptions.updateAllPlugins"),
+            onPress: onUpdateAllClick,
+        },
+        {
             icon: "bookmark-square",
             title: t("pluginSetting.menu.subscriptionSetting"),
             async onPress() {
