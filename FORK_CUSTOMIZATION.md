@@ -18,7 +18,7 @@ npm run build-android-test
 android/app/build/outputs/apk/preview/app-preview.apk
 ```
 
-- 单架构 **arm64-v8a**，体积约 22MB
+- 单架构 **arm64-v8a**（面向华为 P30 Pro 等 64 位 ARM 真机），体积约 12MB
 - 开启 R8 压缩与资源裁剪
 - 使用 debug 签名，无需配置 `keystore.properties`
 

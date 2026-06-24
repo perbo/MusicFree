@@ -1,3 +1,11 @@
+// preview 包仅面向 arm64 真机（如华为 P30 Pro / Kirin 980），不打包模拟器与其他架构
+def buildingPreview = gradle.startParameter.taskNames.any {
+    it.toLowerCase().contains("preview")
+}
+if (buildingPreview) {
+    project.ext.reactNativeArchitectures = "arm64-v8a"
+}
+
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
@@ -130,6 +138,11 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode appVersionCode
         versionName appVersion
+        if (buildingPreview) {
+            ndk {
+                abiFilters "arm64-v8a"
+            }
+        }
     }
     signingConfigs {
         debug {
@@ -178,7 +191,7 @@ android {
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
-        // 单架构测试包：体积接近官方 Release，且与正式版并存
+        // 单架构 preview：arm64-v8a（P30 Pro 等），可与正式版并存
         preview {
             initWith release
             applicationIdSuffix ".test"
