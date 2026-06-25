@@ -6,7 +6,7 @@
 
 ### 测试包（推荐自用）
 
-与正式版 **并存安装**（包名 `fun.upup.musicfree.test`，应用名「MusicFree 测试」）：
+与正式版 **并存安装**（包名 `fun.upup.musicfree.test`，桌面显示名 **Listening**）：
 
 ```bash
 npm run build-android-test
@@ -37,7 +37,7 @@ cd android && ./gradlew assembleRelease
 | 项目 | preview（测试） | release（正式） |
 |------|----------------|----------------|
 | 包名 | `fun.upup.musicfree.test` | `fun.upup.musicfree` |
-| 应用名 | MusicFree 测试 | MusicFree |
+| 应用名 | Listening | MusicFree |
 | 代码压缩 | 是 | 否（当前配置） |
 | ABI | 脚本指定单架构 | 多架构分包 |
 | 签名 | debug | 正式 keystore（可选） |
